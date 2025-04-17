@@ -1,10 +1,12 @@
-from pytorch/pytorch:latest
+FROM python:3.10
 
-RUN pip install pytorch_pretrained_bert numpy pandas nltk Flask flask-cors transformers
+WORKDIR /app
+COPY . /app
 
-COPY main.py /src/main.py
-COPY finbert /src/finbert
-COPY models /src/models
+RUN pip install --upgrade pip
+RUN pip install fastapi uvicorn torch transformers
 
-EXPOSE  8080
-CMD ["python3", "/src/main.py"]
+EXPOSE 8080
+ENV PORT 8080
+
+CMD exec uvicorn fastapi_app:app --host 0.0.0.0 --port ${PORT:-8080}
