@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentiment Analysis App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Source Sans Pro', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #6e7dff, #ff6b6b);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: white;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 40px;
+    }
+
+    .container {
+      text-align: center;
+      padding: 30px;
+      border-radius: 15px;
+      background: rgba(0, 0, 0, 0.7);
+      box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.2);
+      width: 100%;
+    }
+
+    .section-cards {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      gap: 30px;
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+    }
+
+    .card {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 20px;
+      width: 250px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+    }
+
+    .card:hover {
+      transform: scale(1.05);
+    }
+
+    input[type="text"], input[type="file"] {
+      padding: 10px;
+      margin: 15px 0;
+      border-radius: 5px;
+      border: 1px solid #fff;
+      width: 80%;
+      max-width: 300px;
+    }
+
+    button {
+      background-color: #3b82f6;
+      color: white;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-bottom: 30px;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #2563eb;
+    }
+
+    .chart-container {
+      margin-top: 30px;
+      width: 80%;
+      max-width: 500px;
+    }
+
+    footer {
+      margin-top: 50px;
+      font-size: 1rem;
+      color: #c1c1c1;
+    }
+
+    .footer-text {
+      margin-right: 10px;
+    }
+
+    footer svg {
+      margin-left: 5px;
+      width: 24px;
+      height: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Sentiment Analysis App</h1>
+
+    <!-- 3 Section Boxes -->
+    <div class="section-cards">
+      <div class="card">
+        <h2>Run Sentiment Analysis</h2>
+        <input type="text" id="text-input" placeholder="Enter your text here" />
+        <button onclick="analyzeText()">Analyze</button>
+        <div id="result"></div>
+      </div>
+
+      <div class="card">
+        <h2>Upload Dataset</h2>
+        <input type="file" id="file-input" />
+        <button onclick="uploadDataset()">Upload</button>
+        <div id="upload-result"></div>
+      </div>
+
+      <div class="card">
+        <h2>Sentiment Results</h2>
+        <div class="chart-container">
+          <canvas id="sentimentChart" width="400" height="200"></canvas>
+        </div>
+        <div id="result-text"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="footer-text">Powered by Hugging Face</span>
+      <svg class="footer-icon" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img" width="1em" height="1em" viewBox="0 0 32 32"><path fill="currentColor" d="M26 24v4H6v-4H4v4a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2v-4zm0-10l-1.41-1.41L17 20.17V2h-2v18.17l-7.59-7.58L6 14l10 10l10-10z"></path></svg>
+    </div>
+  </div>
+
+  <script>
+    const BASE_URL = window.location.origin;
+
+    // Declare the chart variable globally so we can update it
+    let sentimentChart = null;
+
+    // Function to analyze text
+    async function analyzeText() {
+      const textInput = document.getElementById("text-input").value;
+      const resultElement = document.getElementById("result");
+      const sentimentChartCanvas = document.getElementById("sentimentChart").getContext('2d');
+
+      if (!textInput) {
+        resultElement.innerText = "Please enter some text to analyze.";
+        resultElement.style.color = "#f87171"; // Red for error messages
+        return;
+      }
+
+      try {
+        const response = await fetch(`${BASE_URL}/predict`, {
+          method: "POST",
+          headers: {
+        "Content-Type": "application/json",
+          },
+      body: JSON.stringify(textInput),
+    });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch prediction.");
+      }
+
+      const result = await response.json();
+
+      console.log("Backend response:", result);
+
+      if (result && result.prediction) {
+        resultElement.innerText = `Sentiment: ${result.prediction}`;
+        resultElement.style.color = "#34d399"; // Green for success
+
+      if (sentimentChart) {
+        sentimentChart.destroy();
+      }
+
+      const sentimentData = {
+        labels: ['Positive', 'Negative', 'Neutral'],
+        datasets: [{
+          data: [result.positive || 0, result.negative || 0, result.neutral || 0], // Default 0 if missing
+          backgroundColor: ['#34d399', '#f87171', '#ffeb3b'],
+          borderColor: '#fff',
+          borderWidth: 1
+        }]
+      };
+
+      const sentimentOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          tooltip: {
+            callbacks: {
+              label: (tooltipItem) => `Sentiment: ${tooltipItem.raw}%`
+            }
+          }
+        }
+      };
+
+      sentimentChart = new Chart(sentimentChartCanvas, {
+        type: 'pie',
+        data: sentimentData,
+        options: sentimentOptions
+      });
+
+    } else {
+      resultElement.innerText = "Error: Sentiment data is missing from the response.";
+      resultElement.style.color = "#f87171"; // Red for error messages
+    }
+  } catch (error) {
+    console.error("Error analyzing text:", error);
+    resultElement.innerText = "Error analyzing text. Please try again.";
+    resultElement.style.color = "#f87171"; // Red for error messages
+  }
+}
+
+    // Function to upload dataset
+    async function uploadDataset() {
+      const fileInput = document.getElementById("file-input");
+      const uploadResultElement = document.getElementById("upload-result");
+
+      if (!fileInput.files.length) {
+        uploadResultElement.innerText = "Please select a file to upload.";
+        uploadResultElement.style.color = "#f87171"; // Red for error messages
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      try {
+        const response = await fetch(`${BASE_URL}/upload-dataset`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to upload dataset.");
+        }
+
+        const result = await response.json();
+        uploadResultElement.innerText = `Upload Successful: ${JSON.stringify(result, null, 2)}`;
+        uploadResultElement.style.color = "#34d399"; // Green for success
+      } catch (error) {
+        console.error("Error uploading file:", error);
+        uploadResultElement.innerText = "Error uploading dataset. Please try again.";
+        uploadResultElement.style.color = "#f87171"; // Red for error messages
+      }
+    }
+  </script>
+</body>
+</html>
+
