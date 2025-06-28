@@ -1,12 +1,17 @@
-FROM python:3.10
+# Dockerfile
+FROM python:3.10-slim
 
+# Optional: Add system dependencies if needed
+RUN apt-get update && apt-get install -y gcc
+
+# Set working directory
 WORKDIR /app
+
+# Copy source code
 COPY . /app
 
-RUN pip install --upgrade pip
-RUN pip install fastapi uvicorn torch transformers
+# Install Python dependencies
+RUN pip install --no-cache-dir fastapi uvicorn torch transformers
 
-EXPOSE 8080
-ENV PORT 8080
-
-CMD exec uvicorn fastapi_app:app --host 0.0.0.0 --port ${PORT:-8080}
+# Run the app
+CMD ["uvicorn", "fastapi_app:app", "--host", "0.0.0.0", "--port", "8080"]

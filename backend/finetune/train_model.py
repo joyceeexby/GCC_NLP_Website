@@ -28,23 +28,37 @@ def extract_all_pdfs():
         for filename in files:
             if filename.endswith(".pdf"):
                 pdf_path = os.path.join(root, filename)
+
+                # Use flattened relative path for saving .txt
+                relative_path = os.path.relpath(pdf_path, REPORTS_DIR)
+                txt_filename = relative_path.replace(".pdf", ".txt").replace("/", "_")
+                txt_path = os.path.join(TEXTS_DIR, txt_filename)
+
+                # Skip if text already extracted
+                if os.path.exists(txt_path):
+                    with open(txt_path, "r", encoding="utf-8") as f:
+                        content = f.read().strip()
+                        if len(content) > 100:
+                            texts.append({"text": content})
+                    # print(f"⏭️ Skipped (already extracted): {filename}")
+                    continue
+
+                # OCR if not previously extracted
                 print(f"🔍 Processing {pdf_path}...")
                 raw_text = ocr_pdf(pdf_path)
                 clean_text = raw_text.replace("\n", " ").strip()
 
                 if len(clean_text) > 100:
                     texts.append({"text": clean_text})
-                    print(f"Extracted {len(clean_text)} characters.")
+                    print(f"✅ Extracted {len(clean_text)} characters.")
                 else:
-                    print(f"Skipped {filename} (too short after OCR)")
+                    print(f"⚠️ Skipped {filename} (too short after OCR)")
 
-                # Optional: save cleaned text
-                relative_path = os.path.relpath(pdf_path, REPORTS_DIR)
-                txt_filename = relative_path.replace(".pdf", ".txt").replace("/", "_")
-                txt_path = os.path.join(TEXTS_DIR, txt_filename)
+                # Save the clean text
                 with open(txt_path, "w", encoding="utf-8") as f:
                     f.write(clean_text)
-    print(f"Total documents extracted: {len(texts)}")
+
+    print(f"📄 Total documents extracted: {len(texts)}")
     return texts
 
 # 3. Load model and tokenizer
